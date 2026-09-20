@@ -63,6 +63,7 @@ class DistillationModel(GenerativeModel):
         teacher_checkpoint: str | None = None,
         student_steps: int = 1,
         teacher_steps: int = 32,
+        teacher_start_step: int | None = None,
         critic_updates: int | None = None,
         critic_lr: float = 1e-4,
         regression_weight: float | None = None,
@@ -108,6 +109,11 @@ class DistillationModel(GenerativeModel):
             raise ValueError("Distillation grids cannot exceed num_steps")
         if teacher_steps > self.num_steps and method in ("dmd", "trajectory"):
             raise ValueError("teacher_steps cannot exceed the VP training grid")
+        if teacher_start_step is not None:
+            if method not in ("dmd", "trajectory"):
+                raise ValueError("teacher_start_step is only supported for DMD/trajectory regression")
+            if not isinstance(teacher_start_step, int) or not teacher_steps - 1 <= teacher_start_step < self.num_steps:
+                raise ValueError("Require teacher_steps - 1 <= teacher_start_step < num_steps")
         ratio = critic_updates if critic_updates is not None else (5 if method == "dmd2" else 1)
         regression = regression_weight if regression_weight is not None else (1.0 if method == "dmd" else 0.0)
         adversarial = gan_weight if gan_weight is not None else (0.003 if method == "dmd2" else 0.0)
@@ -120,6 +126,7 @@ class DistillationModel(GenerativeModel):
         if method != "dmd2" and adversarial:
             raise ValueError("The adversarial objective is supported by DMD2")
         self.method, self.student_steps, self.teacher_steps = method, student_steps, teacher_steps
+        self.teacher_start_step = self.num_steps - 1 if teacher_start_step is None else teacher_start_step
         self.critic_updates, self.critic_lr = ratio, critic_lr
         self.regression_weight, self.gan_weight = regression, adversarial
         self.dm_min_time, self.dm_max_time = dm_min_time, dm_max_time
@@ -148,6 +155,9 @@ class DistillationModel(GenerativeModel):
             dm_max_time=dm_max_time,
             initialize_from_teacher=initialize_from_teacher,
         )
+        # Preserve constructor metadata for checkpoints made before this option.
+        if teacher_start_step is not None:
+            self.hparams["teacher_start_step"] = teacher_start_step
 
     def set_teacher(self, teacher):
         if not isinstance(teacher, DDPM):
@@ -283,7 +293,9 @@ class DistillationModel(GenerativeModel):
             for t, next_t in zip(times[:-1], times[1:]):
                 x = ode_step(lambda state, time: teacher.velocity(state, time, cids), x, t, next_t, "heun")
         else:
-            grid = self._grid(self.teacher_steps)
+            # Epsilon teachers can amplify errors at nearly zero terminal SNR.
+            # An explicit earlier start keeps the selected grid reproducible.
+            grid = torch.linspace(self.teacher_start_step, -1, self.teacher_steps + 1, device=x.device).round().long()
             for t, next_t in zip(grid[:-1], grid[1:]):
                 x = self._ddim_step(teacher.eps_model, x, t, next_t, cids, teacher.prediction_type)
         return x

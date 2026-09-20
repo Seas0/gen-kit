@@ -119,6 +119,8 @@ The score estimates and normalization are detached. Only the generator receives 
 
 Train DMD/DMD2 through `Trainer.fit` or call `configure_optimizers`, `configure_auxiliary_optimizers` and `optimize_batch` in a custom loop. Calling `loss().backward()` alone computes only the generator objective and does not train the required fake-score model. Logged fake-score, discriminator, distribution-matching and regression terms remain separate; their sum and validation surrogate are not perceptual-quality measures.
 
+For DMD and paired trajectory regression, `teacher_start_step` optionally selects the zero-based first timestep of the teacher's DDIM grid. It defaults to the terminal training timestep. Starting earlier can avoid error amplification from epsilon predictions at nearly zero SNR; it also approximates the prior at that earlier noise level, so inspect the resulting teacher samples before training. The student grid and distribution-matching noise range remain independently configured. A v-prediction student with `initialize_from_teacher=false` can use an epsilon teacher without an unstable epsilon-to-x0 conversion at the student's terminal timestep.
+
 ### Progressive, paired trajectory and reflow methods
 
 Progressive distillation samples an adjacent pair of teacher DDIM steps, `t -> middle -> end`, and derives a target so one student update lands at the same endpoint. Given the teacher endpoint `x_end`:

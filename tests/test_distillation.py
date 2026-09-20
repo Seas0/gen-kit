@@ -195,3 +195,32 @@ def test_consistency_teacher_requires_matching_input_type():
     teacher = GenerativeModel(model_type="edm", **{**small_options(True), "num_classes": None})
     with pytest.raises(ValueError, match="input types"):
         student.set_teacher(teacher)
+
+
+def test_teacher_regression_grid_start_round_trip(tmp_path):
+    from diffusion import save_model
+
+    options = small_options()
+    teacher = GenerativeModel(prediction_type="v", **options)
+    student = DistillationModel(method="dmd", teacher_steps=4, teacher_start_step=24, **options)
+    student.set_teacher(teacher)
+    calls = []
+    original_forward = teacher.eps_model.forward
+
+    def record(x, t, cids=None):
+        calls.append(t.detach().clone())
+        return original_forward(x, t, cids=cids)
+
+    teacher.eps_model.forward = record
+    student._teacher_sample(torch.randn(4, 2))
+    expected = torch.linspace(24, -1, 5).round().long()[:-1] + 1
+    torch.testing.assert_close(torch.cat(calls).flatten(), expected.float())
+    restored = load_model(save_model(student, tmp_path / "student.safetensors"))
+    assert restored.teacher_start_step == 24
+    assert restored.generate((2,), num_samples=4).isfinite().all()
+
+
+@pytest.mark.parametrize("method,start", [("dmd", -1), ("dmd", 32), ("dmd", 2), ("dmd2", 24), ("reflow", 24)])
+def test_invalid_teacher_regression_grid(method, start):
+    with pytest.raises(ValueError, match="teacher_start_step"):
+        DistillationModel(method=method, teacher_steps=4, teacher_start_step=start, **small_options())
