@@ -1,0 +1,18 @@
+# Apply after a dataset config and set model.init_args.teacher_checkpoint.
+model:
+  class_path: diffusion.DistillationModel
+  init_args:
+    method: dmd
+    student_steps: 1
+    teacher_steps: 32
+    critic_updates: 1
+    regression_weight: 1.0
+    model_type: diffusion
+    trajectory: vp
+    prediction_type: v
+    sampling_scheduler: distilled
+    teacher_checkpoint: null
+    norm: group
+trainer:
+  name: dmd
+  gradient_clip_val: 1.0

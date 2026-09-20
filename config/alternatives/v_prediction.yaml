@@ -1,0 +1,12 @@
+# Apply after a dataset config with a second --config argument.
+model:
+  class_path: diffusion.GenerativeModel
+  init_args:
+    model_type: diffusion
+    trajectory: vp
+    prediction_type: v
+    norm: group
+    sampling_scheduler: dpmpp_2m
+    sampling_steps: 30
+trainer:
+  name: v_prediction

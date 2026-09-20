@@ -1,0 +1,12 @@
+# Apply after a dataset config with a second --config argument.
+model:
+  class_path: diffusion.GenerativeModel
+  init_args:
+    model_type: flow_matching
+    trajectory: vp_sde
+    prediction_type: velocity
+    sampling_scheduler: heun
+    sampling_steps: 100
+    norm: group
+trainer:
+  name: flow_matching_vp

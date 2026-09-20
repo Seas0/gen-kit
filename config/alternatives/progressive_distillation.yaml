@@ -1,0 +1,16 @@
+# Apply after a dataset config and set model.init_args.teacher_checkpoint.
+model:
+  class_path: diffusion.DistillationModel
+  init_args:
+    method: progressive
+    student_steps: 8
+    teacher_steps: 16
+    model_type: diffusion
+    trajectory: vp
+    prediction_type: v
+    sampling_scheduler: distilled
+    teacher_checkpoint: null
+    norm: group
+trainer:
+  name: progressive_distillation
+  gradient_clip_val: 1.0

@@ -1,0 +1,14 @@
+# Apply after a dataset config with a second --config argument.
+model:
+  class_path: diffusion.GenerativeModel
+  init_args:
+    model_type: consistency
+    trajectory: edm
+    prediction_type: x0
+    sampling_scheduler: consistency
+    sampling_steps: 1
+    consistency_mode: training
+    consistency_steps: 40
+    norm: group
+trainer:
+  name: consistency

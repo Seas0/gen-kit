@@ -1,0 +1,16 @@
+# Apply after a dataset config and set model.init_args.teacher_checkpoint.
+model:
+  class_path: diffusion.DistillationModel
+  init_args:
+    method: reflow
+    student_steps: 1
+    teacher_steps: 40
+    model_type: rectified_flow
+    trajectory: linear
+    prediction_type: velocity
+    sampling_scheduler: euler
+    teacher_checkpoint: null
+    norm: group
+trainer:
+  name: reflow
+  gradient_clip_val: 1.0

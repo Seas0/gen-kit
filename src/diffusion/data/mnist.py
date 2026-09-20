@@ -3,10 +3,9 @@
 import torch
 from torch.utils.data import random_split, DataLoader
 from torchvision import datasets, transforms
-from lightning import LightningDataModule
 
 
-class MNISTDataModule(LightningDataModule):
+class MNISTDataModule:
     """
     DataModule for MNIST-like datasets.
 

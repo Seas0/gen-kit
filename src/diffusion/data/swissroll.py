@@ -5,7 +5,6 @@ from sklearn.datasets import make_swiss_roll
 from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import DataLoader, TensorDataset
-from lightning import LightningDataModule
 
 
 def make_swiss_roll_2d(
@@ -53,7 +52,7 @@ def make_swiss_roll_2d(
         return x_train, x_val
 
 
-class SwissRollDataModule(LightningDataModule):
+class SwissRollDataModule:
     """
     DataModule for 2D Swiss roll data.
 

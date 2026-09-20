@@ -115,6 +115,11 @@ def make_norm(mode: str | None, num_features: int | None) -> nn.Module:
         norm = nn.BatchNorm2d(num_features)
     elif mode == "instance":
         norm = nn.InstanceNorm2d(num_features)
+    elif mode == "group":
+        groups = min(32, num_features)
+        while num_features % groups:
+            groups -= 1
+        norm = nn.GroupNorm(groups, num_features)
     else:
         raise ValueError("Unknown normalization type: {}".format(mode))
 

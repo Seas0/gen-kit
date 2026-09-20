@@ -17,16 +17,19 @@ dependencies = [
     "numpy",
     "torch",
     "torchvision",
-    "lightning",
+    "omegaconf",
+    "pyyaml",
+    "diffusers>=0.35,<0.40",
+    "scipy",
     "tensorboard",
-    "mlflow",
     "scikit-learn",
     "matplotlib",
     "notebook"
 ]
 
 [project.optional-dependencies]
-dev = ["mypy", "ruff"]
+dev = ["mypy", "ruff", "pytest"]
+tracking = ["mlflow"]
 
 [project.urls]
 source = "https://github.com/joseph-nagel/diffusion-demo"

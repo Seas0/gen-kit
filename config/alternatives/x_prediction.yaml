@@ -1,0 +1,11 @@
+# Apply after a dataset config with a second --config argument.
+model:
+  class_path: diffusion.GenerativeModel
+  init_args:
+    model_type: diffusion
+    trajectory: vp
+    prediction_type: x0
+    sampling_scheduler: ddim
+    sampling_steps: 50
+trainer:
+  name: x_prediction

@@ -1,9 +1,11 @@
 numpy
 torch
 torchvision
-lightning
+omegaconf
+pyyaml
+diffusers>=0.35,<0.40
+scipy
 tensorboard
-mlflow
 scikit-learn
 matplotlib
 notebook

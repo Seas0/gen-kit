@@ -1,17 +1,6 @@
-"""
-Main script.
+"""YAML-based PyTorch training entry point."""
 
-Example
--------
-python scripts/main.py fit --config config/swissroll.yaml
-
-"""
-
-from lightning.pytorch.cli import LightningCLI
-
-
-def main():
-    cli = LightningCLI()  # noqa: F841
+from diffusion.training import main
 
 
 if __name__ == "__main__":

@@ -1,0 +1,10 @@
+# Apply after a dataset config with a second --config argument.
+model:
+  class_path: diffusion.GenerativeModel
+  init_args:
+    model_type: diffusion
+    trajectory: vp
+    prediction_type: epsilon
+    sampling_scheduler: ddpm
+trainer:
+  name: epsilon

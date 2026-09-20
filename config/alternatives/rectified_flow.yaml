@@ -1,0 +1,12 @@
+# Apply after a dataset config with a second --config argument.
+model:
+  class_path: diffusion.GenerativeModel
+  init_args:
+    model_type: rectified_flow
+    trajectory: linear
+    prediction_type: velocity
+    sampling_scheduler: euler
+    sampling_steps: 40
+    norm: group
+trainer:
+  name: rectified_flow

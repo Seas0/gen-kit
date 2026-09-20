@@ -84,7 +84,12 @@ class DDPM2d(DDPM):
         lr_schedule: str | None = "constant",
         lr_interval: str = "epoch",
         lr_warmup: int = 0,
+        prediction_type: str = "epsilon",
+        sampling_scheduler: str = "ddpm",
+        sampling_steps: int | None = None,
+        scheduler_kwargs: dict | None = None,
     ):
+        hparams = {key: value for key, value in locals().items() if key not in ("self", "__class__")}
 
         # construct U-net model
         eps_model = UNet.from_params(
@@ -118,7 +123,11 @@ class DDPM2d(DDPM):
             lr_schedule=lr_schedule,
             lr_interval=lr_interval,
             lr_warmup=lr_warmup,
+            prediction_type=prediction_type,
+            sampling_scheduler=sampling_scheduler,
+            sampling_steps=sampling_steps,
+            scheduler_kwargs=scheduler_kwargs,
         )
 
         # store hyperparams
-        self.save_hyperparameters()
+        self.hparams = hparams

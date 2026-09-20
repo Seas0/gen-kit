@@ -1,78 +1,50 @@
 seed_everything: 42
-
 ckpt_path: null
-
 data:
-  class_path: "diffusion.SwissRollDataModule"
+  class_path: diffusion.SwissRollDataModule
   init_args:
     num_train: 2400
     num_val: 600
     num_test: 0
     noise_level: 0.5
     scaling: 0.15
-    random_state: null
+    random_state: 42
     batch_size: 32
     num_workers: 0
-
 model:
-  class_path: "diffusion.DDPMTab"
+  class_path: diffusion.GenerativeModel
   init_args:
     in_features: 2
-    mid_features: [128, 128, 128]
-    activation: "leaky_relu"
+    mid_features:
+    - 128
+    - 128
+    - 128
+    activation: leaky_relu
     embed_dim: 128
     num_steps: 500
-    schedule: "cosine"
-    beta_range: [1e-04, 0.02]
+    schedule: cosine
+    beta_range:
+    - 1e-04
+    - 0.02
     cosine_s: 0.008
-    sigmoid_range: [-5.0, 5.0]
-    criterion: "mse"
+    sigmoid_range:
+    - -5.0
+    - 5.0
+    criterion: mse
     lr: 1e-03
-    lr_schedule: "constant"
-    lr_interval: "epoch"
+    lr_schedule: constant
+    lr_interval: epoch
     lr_warmup: 0
-
+    backbone: dense
+    model_type: diffusion
+    trajectory: vp
+    prediction_type: epsilon
+    sampling_scheduler: ddpm
 trainer:
-  accelerator: "auto"
+  accelerator: auto
   max_epochs: 1000
   log_every_n_steps: 5
-  logger:
-    class_path: "lightning.pytorch.loggers.TensorBoardLogger"
-    init_args:
-      save_dir: "run/"
-      name: "swissroll"
-      version: null
-    # class_path: "lightning.pytorch.loggers.MLFlowLogger"
-    # init_args:
-    #   experiment_name: "swissroll"
-    #   run_name: null
-    #   save_dir: "run/mlruns"
-    #   log_model: true
-  callbacks:
-    - class_path: "lightning.pytorch.callbacks.StochasticWeightAveraging"
-      init_args:
-        swa_lrs: 1e-04
-        swa_epoch_start: 0.7
-        annealing_epochs: 10
-        annealing_strategy: "cos"
-    - class_path: "lightning.pytorch.callbacks.LearningRateMonitor"
-      init_args:
-        logging_interval: null
-    - class_path: "lightning.pytorch.callbacks.ModelCheckpoint"
-      init_args:
-        filename: "best"
-        monitor: "val_loss"
-        mode: "min"
-        save_top_k: 1
-    - class_path: "lightning.pytorch.callbacks.ModelCheckpoint"
-      init_args:
-        filename: "{epoch}"
-        save_top_k: -1
-        every_n_epochs: 10
-        save_last: true
-    # - class_path: "lightning.pytorch.callbacks.ModelCheckpoint"
-    #   init_args:
-    #     filename: "{step}"
-    #     save_top_k: -1
-    #     every_n_train_steps: 100
-    #     save_last: false
+  save_dir: run/
+  name: swissroll
+  version: null
+  checkpoint_every_n_epochs: 10

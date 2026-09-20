@@ -59,7 +59,7 @@ class SinusoidalEncoding(nn.Module):
         device = t.device
         batch_size = t.shape[0]
 
-        emb = torch.zeros(batch_size, self.embed_dim, device=device)
+        emb = torch.zeros(batch_size, self.embed_dim, device=device, dtype=self.omega.dtype)
         emb[:, 0::2] = torch.sin(self.omega * t)
         emb[:, 1::2] = torch.cos(self.omega * t)
 
