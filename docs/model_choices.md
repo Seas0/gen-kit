@@ -11,12 +11,14 @@ The code separates four choices: **what is learned**, **which probability path i
 | `src/diffusion/paths.py` | Path coefficients, analytic derivatives and invertible target conversions |
 | `src/diffusion/sampling.py` | VP scheduler adapters, ODE/SDE integration, EDM and consistency samplers |
 | `src/diffusion/training.py` | Native PyTorch training, config merging, logging, saving and resume |
+| `src/diffusion/serialization.py` | Atomic safetensors exports, embedded model configuration and checkpoint reconstruction |
 | `src/diffusion/ddpm/base.py` | Discrete VP objective, forward noising, DDPM reverse steps and legacy API |
 | `src/diffusion/models/` | Time-conditioned MLP and U-Net; U-Net optionally receives class labels |
 | `src/diffusion/data/` | Swiss roll and MNIST/FashionMNIST/KMNIST data loaders |
 | `config/alternatives/` | Model presets applied after a dataset config |
 | `tests/test_generative.py` | Analytic identities, sampler equivalence, gradient and checkpoint tests |
 | `tests/test_distillation.py` | Score-difference gradients, frozen teachers, progressive targets, critic isolation and resume |
+| `tests/test_serialization.py` | Model/state round trips, dtype preservation, teacher loading, atomic writes and CLI exports |
 
 ## Training targets
 
@@ -144,9 +146,19 @@ All student checkpoints sample independently of the teacher file. Resuming train
 
 The trainer owns device placement, Adam, validation, optional TensorBoard logging, JSONL metrics, gradient clipping, early stopping and checkpoint cadence. Models are `torch.nn.Module`; data modules are ordinary Python classes. There is no Lightning import or dependency.
 
-Checkpoints contain the model class, constructor arguments, parameters and buffers, optimizer/scheduler states, epoch/step counters, EMA target, auxiliary optimizer states, random-number state and resolved configuration. Resume checks the model configuration before loading. Native checkpoints load through `diffusion.training.load_model`; legacy class-specific checkpoints can be loaded with `DDPMTab.load_from_checkpoint` or `DDPM2d.load_from_checkpoint` when their constructor metadata matches.
+Native `.ckpt` checkpoints contain the model class, constructor arguments, parameters and buffers, optimizer/scheduler states, epoch/step counters, EMA target, auxiliary optimizer states, random-number state and resolved configuration. Resume checks the model configuration before loading. Native checkpoints load through `diffusion.load_model` (also available from `diffusion.training`); legacy class-specific checkpoints can be loaded with `DDPMTab.load_from_checkpoint` or `DDPM2d.load_from_checkpoint` when their constructor metadata matches.
 
 The loop is single-device and full precision. It does not emulate Lightning callbacks, automatic SWA, distributed launch or the old standalone scripts' individual argparse flags. Use `--set` overrides on the shared CLI instead.
+
+### Safetensors model files
+
+`save_model(model, "model.safetensors")` and `model.save_safetensors(...)` write the complete registered model state with the [safetensors tensor API](https://huggingface.co/docs/safetensors/api/torch). The file includes backbone weights, noise-schedule buffers, consistency EMA, distillation critics and update counters. The unregistered frozen teacher remains external. Optimizer state, LR scheduler state, trainer counters and RNG state are available in the resumable `.ckpt` format.
+
+The safetensors header embeds `format=pt`, `gen_kit_format=1`, the model class name and JSON `hyper_parameters`. Constructor arguments must be JSON-serializable. `load_model` reconstructs one of the registered model classes from that metadata, restores tensors strictly, and preserves saved dtypes and the requested device. Class names in metadata are resolved through a fixed registry. Files with missing/unsupported metadata or mismatched tensor keys fail explicitly; a failed safetensors read does not fall back to pickle.
+
+Exports use independent, contiguous CPU copies of each tensor, supporting strided and shared source storage without changing the live model. A temporary file in the destination directory is replaced atomically after a successful write. Tensor-only readers such as `safetensors.torch.load_file` can also read the exported weights directly.
+
+The `export` CLI command converts an existing `.ckpt` into this model format. Set `trainer.export_safetensors=true` to write matching `best.safetensors`, `last.safetensors` and periodic epoch exports alongside the full training checkpoints. Sampling, validation and frozen-teacher loading accept either format. `fit --checkpoint` requires a full `.ckpt`; exported models can instead initialize a fresh training run through `Trainer.fit(load_model(path), data)`.
 
 ## Primary references
 

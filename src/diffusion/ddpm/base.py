@@ -1,7 +1,6 @@
 """DDPM base model."""
 
 from collections.abc import Callable, Sequence
-import inspect
 
 import torch
 import torch.nn as nn
@@ -128,16 +127,16 @@ class DDPM(nn.Module):
 
     @classmethod
     def load_from_checkpoint(cls, checkpoint_path, map_location="cpu", **kwargs):
-        """Load native or compatible legacy checkpoints without Lightning."""
-        checkpoint = torch.load(checkpoint_path, map_location=map_location, weights_only=True)
-        params = dict(checkpoint["hyper_parameters"])
-        # Legacy Lightning checkpoints may also store the derived beta table.
-        if "betas" not in inspect.signature(cls.__init__).parameters:
-            params.pop("betas", None)
-        params.update(kwargs)
-        model = cls(**params)
-        model.load_state_dict(checkpoint["state_dict"])
-        return model
+        """Load safetensors, native or compatible legacy checkpoints."""
+        from ..serialization import load_model
+
+        return load_model(checkpoint_path, map_location, model_class=cls, **kwargs)
+
+    def save_safetensors(self, path):
+        """Export model weights and constructor metadata without optimizer state."""
+        from ..serialization import save_model
+
+        return save_model(self, path)
 
     def set_model(self, eps_model: nn.Module) -> None:
         """Set noise-predicting model."""

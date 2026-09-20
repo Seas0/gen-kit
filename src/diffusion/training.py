@@ -15,6 +15,7 @@ from .data import MNISTDataModule, SwissRollDataModule
 from .ddpm import DDPM2d, DDPMTab
 from .generative import GenerativeModel
 from .distillation import DistillationModel
+from .serialization import load_model, save_model
 
 
 CLASSES = {
@@ -37,25 +38,6 @@ def instantiate(spec):
     if name not in CLASSES:
         raise ValueError(f"Unknown class {spec['class_path']!r}; choose from {tuple(CLASSES)}")
     return CLASSES[name](**spec.get("init_args", {}))
-
-
-def load_model(path, map_location="cpu"):
-    checkpoint = torch.load(path, map_location=map_location, weights_only=True)
-    name = checkpoint.get("model_class", "").split(".")[-1]
-    if not name:
-        params = checkpoint.get("hyper_parameters", {})
-        name = (
-            "GenerativeModel"
-            if "model_type" in params
-            else "DDPMTab"
-            if "in_features" in params
-            else "DDPM2d"
-            if "in_channels" in params
-            else ""
-        )
-    if name not in CLASSES or name.endswith("DataModule"):
-        raise ValueError("Unrecognized model_class; load legacy checkpoints with DDPMTab/DDPM2d directly")
-    return CLASSES[name].load_from_checkpoint(path, map_location=map_location)
 
 
 def to_device(batch, device):
@@ -119,6 +101,7 @@ class Trainer:
         tensorboard=True,
         patience=0,
         num_threads=None,
+        export_safetensors=False,
     ):
         if min(max_epochs, check_val_every_n_epoch, checkpoint_every_n_epochs, log_every_n_steps) < 1:
             raise ValueError("Epoch counts, logging and checkpoint intervals must be positive")
@@ -133,6 +116,7 @@ class Trainer:
         self.checkpoint_every_n_epochs, self.gradient_clip_val = checkpoint_every_n_epochs, gradient_clip_val
         self.limit_train_batches, self.limit_val_batches = limit_train_batches, limit_val_batches
         self.tensorboard, self.patience = tensorboard, patience
+        self.export_safetensors = export_safetensors
         self.global_step, self.best_loss, self.bad_epochs = 0, math.inf, 0
 
     def _run_dir(self, checkpoint):
@@ -183,8 +167,12 @@ class Trainer:
         temporary = path.with_suffix(".tmp")
         torch.save(checkpoint, temporary)
         temporary.replace(path)
+        if self.export_safetensors:
+            save_model(model, path.with_suffix(".safetensors"))
 
     def fit(self, model, data, ckpt_path=None, config=None):
+        if ckpt_path and Path(ckpt_path).suffix.lower() == ".safetensors":
+            raise ValueError("Safetensors exports have no optimizer/RNG state; use a .ckpt file for training resume")
         data.prepare_data()
         data.setup("fit")
         train_loader, val_loader = data.train_dataloader(), data.val_dataloader()
@@ -333,11 +321,11 @@ def read_config(paths, overrides=()):
 
 def main(argv=None, default_config=None):
     parser = argparse.ArgumentParser(description="Train diffusion, flow and consistency models with plain PyTorch")
-    parser.add_argument("command", nargs="?", choices=("fit", "validate", "sample"), default="fit")
+    parser.add_argument("command", nargs="?", choices=("fit", "validate", "sample", "export"), default="fit")
     parser.add_argument("--config", action="append", default=[])
     parser.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
     parser.add_argument("--checkpoint")
-    parser.add_argument("--output", default="run/samples.pt")
+    parser.add_argument("--output")
     parser.add_argument("--num-samples", type=int, default=16)
     parser.add_argument("--sample-shape", type=int, nargs="+")
     parser.add_argument("--scheduler")
@@ -345,6 +333,12 @@ def main(argv=None, default_config=None):
     parser.add_argument("--class-id", type=int)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args(argv)
+    if args.command == "export":
+        if not args.checkpoint:
+            parser.error("export requires --checkpoint")
+        output = save_model(load_model(args.checkpoint), args.output or "run/model.safetensors")
+        print(f"Exported model to {output}")
+        return
     if args.command == "sample":
         if not args.checkpoint:
             parser.error("sample requires --checkpoint")
@@ -357,7 +351,7 @@ def main(argv=None, default_config=None):
         )
         cids = None if args.class_id is None else torch.full((args.num_samples,), args.class_id, dtype=torch.long)
         samples = model.generate(shape, cids, args.num_samples, scheduler=args.scheduler, num_steps=args.num_steps)
-        path = Path(args.output)
+        path = Path(args.output or "run/samples.pt")
         path.parent.mkdir(parents=True, exist_ok=True)
         torch.save(samples.cpu(), path)
         print(f"Saved {list(samples.shape)} samples to {path}")

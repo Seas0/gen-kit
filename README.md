@@ -61,6 +61,38 @@ python scripts/main.py sample \
 
 For MNIST, sampling infers `(1, 28, 28)` from the backbone. Add `--class-id 7` for a conditional checkpoint. Set `--sample-shape` explicitly for other image dimensions.
 
+## Safetensors serialization
+
+Export a model to a single `.safetensors` file containing its parameters, buffers and constructor configuration:
+
+```python
+from diffusion import load_model, save_model
+
+model = load_model("run/swissroll/version_0/checkpoints/best.ckpt")
+save_model(model, "run/model.safetensors")  # Or model.save_safetensors(...).
+restored = load_model("run/model.safetensors").eval()
+samples = restored.generate((2,), num_samples=100, scheduler="ddim", num_steps=20)
+```
+
+The CLI can export and sample these files directly:
+
+```bash
+python scripts/main.py export \
+  --checkpoint run/swissroll/version_0/checkpoints/best.ckpt \
+  --output run/model.safetensors
+
+python scripts/main.py sample --checkpoint run/model.safetensors \
+  --scheduler unipc --num-steps 20 --output run/samples.pt
+
+# Also export safetensors whenever the trainer saves a checkpoint.
+python scripts/main.py fit --config config/swissroll.yaml \
+  --set trainer.export_safetensors=true
+```
+
+`load_model` auto-detects `.safetensors` and `.ckpt`; class-specific `load_from_checkpoint` methods accept both. All model families are supported, including consistency EMA and DMD/DMD2 critic state. Safetensors files also work as `teacher_checkpoint` values and with the `validate` command. No separate configuration file is required, and tensor dtypes are preserved. `map_location` accepts a device string or `torch.device`.
+
+Safetensors exports contain model state only. Keep `.ckpt` files for exact training resume with optimizer, scheduler and RNG state. To start a fresh optimizer from exported weights in Python, use `Trainer.fit(load_model("model.safetensors"), data)`. Tensor-only safetensors files produced elsewhere can be read with `safetensors.torch.load_file` and loaded into an already configured model with `load_state_dict`.
+
 ## Consistency training and distillation
 
 Standalone consistency training uses coupled noisy pairs and a frozen EMA target. Distillation instead uses a frozen diffusion teacher's Heun step to construct the pair:

@@ -4,6 +4,7 @@ torchvision
 omegaconf
 pyyaml
 diffusers>=0.35,<0.40
+safetensors>=0.4.3
 scipy
 tensorboard
 scikit-learn
